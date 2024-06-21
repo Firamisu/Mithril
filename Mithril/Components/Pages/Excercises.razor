@@ -1,0 +1,23 @@
+﻿@page "/exercises"
+
+
+@inject ApplicationDbContext DbContext
+
+<h3>Exercises</h3>
+
+<ul>
+    @foreach (var exercise in exercises)
+    {
+        <li>@exercise</li>
+    }
+</ul>
+
+@code {
+    private List<Excercise> exercises;
+
+    protected override async Task OnInitializedAsync()
+
+    {
+        exercises =  DbContext.Excercises.ToList<Excercise>();
+    }
+}
