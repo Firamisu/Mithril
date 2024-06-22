@@ -1,0 +1,81 @@
+﻿@page "/exercises"
+
+@inject ApplicationDbContext DbContext
+
+<h3>Lista Ćwiczeń</h3>
+
+<div class="exercise-list">
+    @foreach (var exercise in exercises)
+    {
+        <div class="exercise-card">
+            <img src="img/@exercise.Image" alt="@exercise.Name" class="exercise-image" />
+            <div class="exercise-details">
+                <h4>@exercise.Name</h4>
+                <p> @exercise.Description</p>
+                <p><strong>Poziom trudnośći:</strong> @exercise.DifficultyLevel</p>
+                <p><strong>Grupa mięśni:</strong> @exercise.MuscleGroup</p>
+                <p><strong>Punkty wysyłku:</strong> @exercise.EffortPointsPerMinute</p>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Exercise> exercises = new List<Exercise>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        exercises = await DbContext.Exercises.ToListAsync();
+    }
+}
+
+<style>
+     .exercise-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .exercise-card {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 16px;
+        width: calc(33.333% - 40px); /* 3 cards per row with gap */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+    .exercise-card:hover {
+        transform: scale(1.05);
+    }
+
+    .exercise-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+
+    .exercise-details {
+        padding-top: 10px;
+    }
+
+    .exercise-details h4 {
+        margin: 0 0 10px;
+    }
+
+    .exercise-details p {
+        margin: 5px 0;
+    }
+
+    @@media (max-width: 1200px) {
+        .exercise-card {
+            width: calc(50% - 30px); /* 2 cards per row with gap */
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .exercise-card {
+            width: calc(100% - 20px); /* 1 card per row with gap */
+        }
+    }
+</style>

@@ -3,4 +3,21 @@
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+
+      <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <NotFoundContent>
+                <RedirectTo404 />
+            </NotFoundContent>
+        </LayoutView>
+    </NotFound>
 </Router>
+
+@code {
+    [Inject] NavigationManager Navigation { get; set; }
+
+    private void RedirectTo404()
+    {
+        Navigation.NavigateTo("/NotFound", forceLoad: true);
+    }
+}
