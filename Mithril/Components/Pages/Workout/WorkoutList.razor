@@ -1,0 +1,106 @@
+@page "/workouts"
+@using Mithril.Models
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<h3>Lista treningów</h3>
+
+<button @onclick="AddNewWorkout">Dodaj nowy trening</button>
+
+@if (workouts == null)
+{
+    <p>£adowanie...</p>
+}
+else if (!workouts.Any())
+{
+    <p>Brak treningów do wyœwietlenia.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa</th>
+                <th>Data</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var workout in workouts)
+            {
+                <tr>
+                    <td>@workout.Name</td>
+                    <td>@workout.Date.ToString("dd-MM-yyyy")</td>
+                    <td>
+                        <button class="btn btn-primary"  @onclick="() => StartWorkout(workout.Id)">Start</button>
+                        <button class="btn btn-secondary" @onclick="() => ViewWorkout(workout.Id)">Podgl¹d</button>
+                        <button class="btn btn-danger" @onclick="() => DeleteWorkout(workout.Id)">Usuñ</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Workout> workouts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        workouts = await DbContext.Workouts.ToListAsync();
+    }
+
+    private void StartWorkout(int id)
+    {
+        Navigation.NavigateTo($"/workout/{id}/start");
+    }
+
+    private void AddNewWorkout()
+    {
+        Navigation.NavigateTo("/new-workout");
+    }
+
+    private void ViewWorkout(int id)
+    {
+        Navigation.NavigateTo($"/workout/{id}");
+    }
+
+
+    private async Task DeleteWorkout(int id)
+    {
+        var workout = await DbContext.Workouts.FindAsync(id);
+        if (workout != null)
+        {
+            DbContext.Workouts.Remove(workout);
+            await DbContext.SaveChangesAsync();
+            workouts = await DbContext.Workouts.ToListAsync();
+        }
+    }
+}
+
+<style>
+    button {
+        margin: 10px 0;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+    }
+
+    th {
+        background-color: #f0f0f0;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+</style>

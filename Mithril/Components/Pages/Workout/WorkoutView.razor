@@ -1,0 +1,119 @@
+@page "/workout/{id:int}"
+@using Mithril.Models
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<h3>Szczegó³y treningu</h3>
+
+@if (workout == null)
+{
+    <p>£adowanie...</p>
+}
+else
+{
+    <div class="workout-details">
+        <div class="workout-header">
+            <p><strong>Nazwa treningu:</strong> @workout.Name</p>
+        </div>
+
+        <div>
+            <button @onclick="() => StartWorkout()" class="btn btn-primary">Rozpocznij trening</button>
+        </div>
+
+        <div class="exercise-list">
+            <h4>Æwiczenia w treningu:</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Æwiczenie</th>
+                        <th>Przewidywany czas serii</th>
+                        <th>Powtórzenia w serii</th>
+                        <th>Przewydiwane punkty wysi³ku</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var workoutExercise in workout.WorkoutExercises)
+                    {
+                        <tr>
+                            <td>@workoutExercise.Exercise.Name</td>
+                            <td>@(workoutExercise.Exercise.ApproxTimeToDoOneRep * workoutExercise.Repetitions) min</td>
+                            <td>@workoutExercise.Repetitions</td>
+                            <td>@(workoutExercise.Exercise.ApproxTimeToDoOneRep * workoutExercise.Repetitions * workoutExercise.Exercise.EffortPointsPerMinute)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <button @onclick="BackToList" class="btn btn-secondary">Powrót do listy</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Workout workout;
+
+    protected override async Task OnInitializedAsync()
+    {
+        workout = await DbContext.Workouts
+            .Include(w => w.WorkoutExercises)
+            .ThenInclude(we => we.Exercise)
+            .FirstOrDefaultAsync(w => w.Id == Id);
+    }
+
+    private void BackToList()
+    {
+        Navigation.NavigateTo("/workouts");
+    }
+
+    private void StartWorkout()
+    {
+        Navigation.NavigateTo($"/workout/{Id}/start");
+    }
+}
+
+<style>
+    h3 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .workout-details {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+
+    .workout-header {
+        margin-bottom: 20px;
+    }
+
+    .exercise-list {
+        margin-top: 20px;
+        overflow: auto;
+    }
+
+        .exercise-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .exercise-list th, .exercise-list td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        .exercise-list th {
+            background-color: #e9e9e9;
+        }
+
+    .btn {
+        margin: 10px 0;
+    }
+</style>
