@@ -1,0 +1,97 @@
+﻿@page "/workouts-history"
+@using Mithril.Models
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<h3>Historia treningów</h3>
+
+
+@if (workoutsHistory == null)
+{
+    <p>Ładowanie...</p>
+}
+else if (!workoutsHistory.Any())
+{
+    <p>Brak treningów do wyświetlenia.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa</th>
+                <th>Data</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var workout in workoutsHistory)
+            {
+                <tr>
+                    <td>@workout.Name</td>
+                    <td>@workout.Date.ToString("dd-MM-yyyy")</td>
+                    <td>
+                        <button class="btn btn-secondary" @onclick="() => ViewWorkoutHistory(workout.Id)">Podgląd</button>
+                        <button class="btn btn-danger" @onclick="() => DeleteWorkoutHistory(workout.Id)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ExerciseLogSet> workoutsHistory;
+
+    protected override async Task OnInitializedAsync()
+    {
+        workoutsHistory = await DbContext.ExerciseLogSets.ToListAsync();
+    }
+
+
+    private void ViewWorkoutHistory(int id)
+    {
+        Navigation.NavigateTo($"/workout-history/{id}");
+    }
+
+
+    private async Task DeleteWorkoutHistory(int id)
+    {
+        var workoutHistRecord = await DbContext.ExerciseLogSets.FindAsync(id);
+        if (workoutHistRecord != null)
+        {
+            DbContext.ExerciseLogSets.Remove(workoutHistRecord);
+            await DbContext.SaveChangesAsync();
+            workoutsHistory = await DbContext.ExerciseLogSets.ToListAsync();
+        }
+    }
+
+
+}
+
+<style>
+    button {
+        margin: 10px 0;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+    }
+
+    th {
+        background-color: #f0f0f0;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+</style>

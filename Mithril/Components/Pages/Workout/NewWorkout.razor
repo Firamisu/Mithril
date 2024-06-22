@@ -1,0 +1,228 @@
+@page "/new-workout"
+@using Mithril.Models
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JS
+
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+
+<h3>Kreator treningu</h3>
+
+<div class="workout-creator">
+    <div class="form-group">
+        <label for="workoutName">Nazwa treningu:</label>
+        <input type="text" id="workoutName" maxlength="40" @bind="workoutName" placeholder="Nazwa treningu" class="form-control" />
+
+        <label class="mt-4" for="restTime">Długość przerwy między ćwiczeniami:</label>
+        <input type="number" id="restTime" min="1" @bind="restTime" placeholder="Długość przerwy w sekundach" class="form-control" />
+    </div>
+
+    @if (selectedExercises.Any())
+    {
+        <div class="exercise-list">
+            <h4>Twoje wybrane ćwiczenia:</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Ćwiczenie</th>
+                        <th>Powtórzenia</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var exercise in selectedExercises)
+                    {
+                        <tr>
+                            <td>@exercise.Name</td>
+                            <td>@exercise.Repetitions</td>
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => RemoveExercise(exercise)">Usuń</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="form-group">
+        <label for="exerciseSelect">Wybierz ćwiczenie:</label>
+        <select id="exerciseSelect" @onchange="OnExerciseSelected" class="form-control">
+            <option value="">Wybierz ćwiczenie</option>
+            @foreach (var exercise in exercises)
+            {
+                <option value="@exercise.Id">@exercise.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="repetitions">Liczba powtórzeń:</label>
+        <input type="number" id="repetitions" @bind="repetitions" placeholder="Liczba powtórzeń" min="1" class="form-control" />
+    </div>
+
+    <button @onclick="AddExercise" class="btn btn-primary">Dodaj ćwiczenie</button>
+</div>
+
+<button @onclick="SaveWorkout" class="btn btn-success">Zapisz trening</button>
+
+@code {
+    private List<Exercise> exercises = new List<Exercise>();
+    private List<SelectedExercise> selectedExercises = new List<SelectedExercise>();
+    private Exercise selectedExercise;
+    private string workoutName;
+    private int restTime;
+    private int? repetitions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        exercises = await DbContext.Exercises.ToListAsync();
+    }
+
+    private async Task SaveWorkout()
+    {
+        if (!selectedExercises.Any() || string.IsNullOrEmpty(workoutName))
+        {
+            return;
+        }
+
+        Workout workout = new Workout
+            {
+                Date = DateTime.Now,
+                Name = workoutName,
+                RestTimeSeconds = restTime,
+                WorkoutExercises = selectedExercises.Select(ex => new WorkoutExercise
+                {
+                    ExerciseId = ex.Id,
+                    Repetitions = ex.Repetitions.Value
+                }).ToList()
+            };
+
+        DbContext.Workouts.Add(workout);
+        await DbContext.SaveChangesAsync();
+
+        Navigation.NavigateTo("/workouts");
+    }
+
+    private void OnExerciseSelected(ChangeEventArgs e)
+    {
+        if (e.Value != "")
+        {
+            int selectedId = int.Parse(e.Value.ToString());
+            selectedExercise = exercises.FirstOrDefault(ex => ex.Id == selectedId);
+        }
+    }
+
+    private async Task AddExercise()
+    {
+        if (selectedExercise != null && repetitions > 0)
+        {
+            selectedExercises.Add(new SelectedExercise
+                {
+                    Id = selectedExercise.Id,
+                    Name = selectedExercise.Name,
+                    Repetitions = repetitions
+                });
+
+            repetitions = null;
+        }
+    }
+
+    private void RemoveExercise(SelectedExercise exercise)
+    {
+        selectedExercises.Remove(exercise);
+    }
+
+
+
+    public class SelectedExercise
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int? Repetitions { get; set; }
+    }
+}
+
+
+
+
+<style>
+    h3 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .workout-creator {
+        max-width:100%;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .btn {
+        margin: 5px;
+    }
+
+    .exercise-list {
+        max-width: 600px;
+        margin: 20px auto;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+        .exercise-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .exercise-list th, .exercise-list td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        .exercise-list th {
+            background-color: #e9e9e9;
+        }
+
+        .exercise-list .btn-danger {
+            background-color: #d9534f;
+            color: white;
+        }
+
+            .exercise-list .btn-danger:hover {
+                background-color: #c9302c;
+            }
+
+    .btn-success {
+        display: block;
+        width: 100%;
+        max-width: 600px;
+        margin: 10px 0 ;
+        padding: 10px;
+        background-color: #212e41;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 18px;
+        text-align: center;
+    }
+
+        .btn-success:hover {
+            background-color: #313e51;
+        }
+</style>

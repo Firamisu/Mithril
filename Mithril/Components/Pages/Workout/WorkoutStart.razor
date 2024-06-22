@@ -1,0 +1,219 @@
+@page "/workout/{id:int}/start"
+@using Mithril.Models
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h1>Aktualne Æwiczenie: <span class="text-primary">@currentExercise</span></h1>
+        <h2>Czas: <span class="text-info">@timeStr</span></h2>
+    </div>
+
+    <div class="d-flex justify-content-center mb-3 gap-5">
+        <button class="btn btn-success text-center rounded-circle start-btn" style="width: 100px; height: 100px;"  @onclick="StartWorkout" disabled="@(isRunning || isFinished)">
+        </button>
+        <button class="btn btn-danger text-center rounded-circle stop-btn" style="width: 100px; height: 100px;" @onclick="EndExercise" disabled="@(!isRunning || isBreak)">
+        </button>
+
+    </div>
+
+    @if (exerciseLogSet != null)
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Æwiczenie</th>
+                        <th>Czas</th>
+                        <th>Data</th>
+                        <th>Powtórzenia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var exercise in exerciseLogSet.ExerciseLogs)
+                    {
+                        <tr>
+                            <td>@exercise.Exercise.Name</td>
+                            <td>@exercise.Duration.ToString(@"mm\:ss\:fff")</td>
+                            <td>@(exercise.Date.Year == 1 ? "-" : exercise.Date.ToLocalTime())</td>
+                            <td>@exercise.Reps</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="my-4 d-flex justify-content-between">
+        <button class="btn btn-primary" @onclick="BackToList">Powrót do listy</button>
+        <button class="btn btn-success" @onclick="SaveWorkout" disabled="@(!isFinished)">Zapisz</button>
+    </div>
+</div>
+
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private int logIndex = 0;
+    private bool isRunning = false;
+    private bool isBreak = false;
+    private bool isFinished = false;
+    private DateTime startTime;
+    private ExerciseLogSet exerciseLogSet;
+
+    private Workout workout;
+    private string timeStr => isRunning ? (DateTime.Now - startTime).ToString(@"mm\:ss\:fff") : "00:00:000";
+    private string currentExercise => info();
+
+
+    private string info()
+    {
+
+        if (isBreak)  {
+            return $"Przerwa {workout.RestTimeSeconds} sekund";
+        }
+
+        if (exerciseLogSet == null)
+        {
+            return "Oczekiwanie na rozpoczêcie treningu";
+        }
+
+        if (!isRunning)
+        {
+            return "Koniec treningu";
+        }
+
+
+        if (logIndex < exerciseLogSet.ExerciseLogs.Count)
+        {
+            return exerciseLogSet?.ExerciseLogs.ElementAt(logIndex).Exercise.Name + " - " + exerciseLogSet?.ExerciseLogs.ElementAt(logIndex).Reps + " powtórzeñ";
+        }
+
+
+        return "";
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        workout = await DbContext.Workouts
+            .Include(w => w.WorkoutExercises)
+            .ThenInclude(we => we.Exercise)
+            .FirstOrDefaultAsync(w => w.Id == Id);
+    }
+
+
+    private void StartWorkout()
+    {   
+        exerciseLogSet = new ExerciseLogSet{
+                Name = $"{workout.Name} - {DateTime.Now}",
+                Date= DateTime.Now,       
+        };
+
+        exerciseLogSet.ExerciseLogs = workout.WorkoutExercises.Select(we => new ExerciseLog
+        {
+            Exercise = we.Exercise,
+            Reps = we.Repetitions,
+            ExerciseId = we.ExerciseId,
+        }).ToList();
+
+
+        startTime = DateTime.Now;
+        exerciseLogSet.ExerciseLogs.ElementAt(logIndex).Date = startTime;
+
+        isRunning = true;
+        TimeUpdater();
+    }
+
+    private async Task TimeUpdater()
+    {
+        while (isRunning)
+        {
+            await Task.Delay(100);
+            StateHasChanged();
+        }
+    }
+
+    private async void EndExercise()
+    {
+
+        exerciseLogSet.ExerciseLogs.ElementAt(logIndex).Duration = (DateTime.Now - startTime);
+
+
+        if (logIndex+1 >= workout.WorkoutExercises.Count)
+        {
+            EndWorkout();
+            return;
+        }
+
+        startTime = DateTime.Now;
+        isBreak = true;
+        while (DateTime.Now - startTime < TimeSpan.FromSeconds(workout.RestTimeSeconds) && isBreak)
+        {
+            await Task.Delay(100);
+        }
+        isBreak = false;
+
+        logIndex++;
+        startTime = DateTime.Now;
+        exerciseLogSet.ExerciseLogs.ElementAt(logIndex).Date = startTime;
+
+    }
+
+
+    private void EndWorkout()
+    {
+        isRunning = false;
+        isFinished = true;
+    }
+
+    private void BackToList()
+    {
+        Navigation.NavigateTo("/workouts");
+    }
+
+    private async Task SaveWorkout()
+    {
+        DbContext.ExerciseLogSets.Add(exerciseLogSet);
+        await DbContext.SaveChangesAsync();
+
+        Navigation.NavigateTo("/workouts-history");
+    }
+
+}
+
+<style>
+
+    .start-btn {
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>'); background-repeat: no-repeat;
+        background-size: 50%;
+        background-position: center;
+    }
+
+    .start-btn[disabled=""] {
+        background-color: gray;
+    }
+
+    .start-btn:hover{
+        background-color: green;
+    }
+
+    .stop-btn{
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-stop-fill" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5"/></svg>');
+        background-repeat: no-repeat;
+        background-size: 50%;
+        background-position: center;
+    }
+
+    .stop-btn[disabled=""] {
+        background-color: gray;
+    }
+
+    .stop-btn:hover {
+        background-color: red;
+    }
+
+    
+</style>
