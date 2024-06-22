@@ -361,6 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Mithril/db.db
 /Mithril/db.db-shm
 /Mithril/db.db-wal
